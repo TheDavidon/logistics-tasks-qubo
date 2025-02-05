@@ -66,7 +66,7 @@ class HamiltonianInitializer:
         H_correct_take_vertices = self.const_correct_take_vertices * sum([sum([1 - self.path_variables[j][self.data.cargo_list[i].start_vertex] * self.cargo_take_variables[i][j] for j in range(self.data.q)]) for i in range(self.data.cargo_count)])
         H_correct_give_vertices = self.const_correct_give_vertices * sum([sum([1 - self.path_variables[j][self.data.cargo_list[i].finish_vertex] * self.cargo_give_variables[i][j] for j in range(self.data.q)]) for i in range(self.data.cargo_count)])
         H_correct_order = self.const_correct_order * sum([[self.cargo_status[j][i] * (self.cargo_status[j][i] - 1) for j in range(self.data.q)]for i in range(self.data.cargo_count)])
-        H_correct_load = [[[self.data.cargo_list[j].weight * self.cargo_status[i][j] for j in range(self.data.cargo_count)] for i in range(k + 1)] for k in range(q)]
+        H_correct_load = [sum([self.data.cargo_list[j].weight * self.cargo_status[i][j] for j in range(self.data.cargo_count)]) for i in range(self.data.q)]
         H_correct_loads = self.const_correct_loads * sum(H_correct_load)
 
         H_path_length = self.const_path_length * sum([sum([sum([self.path_variables[i][u] * self.path_variables[i + 1][v] * self.data.dist[u][v]

@@ -58,7 +58,14 @@ class HamiltonianInitializer:
 
         #auxiliary expressions
         self.load_num = [self.auxiliary_variables_to_number_expression(i) for i in range(self.data.q)]
-        self.cargo_status = [[sum([self.cargo_take_variables[j][k] - self.cargo_give_variables[j][k] for k in range(i + 1)]) for j in range(self.data.cargo_count)] for i in range(self.data.q)]
+
+        self.cargo_status = [[0 for _ in range(self.data.cargo_count)] for _ in range(self.data.q)]
+        for i in range(self.data.q):
+            for j in range(self.data.cargo_count):
+                if i == 0:
+                    self.cargo_status[i][j] = self.cargo_take_variables[j][i] - self.cargo_give_variables[j][i]
+                else:
+                    self.cargo_status[i][j] = self.cargo_status[i - 1][j] + self.cargo_take_variables[j][i] - self.cargo_give_variables[j][i]
     def initialize_consts(self):
         self.norm_const_correct_end_points = 1 / 2
         self.norm_const_correct_path = 1

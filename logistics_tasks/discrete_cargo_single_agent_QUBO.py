@@ -1,5 +1,5 @@
 import dataclasses
-
+from pyqubo import *
 import neal
 from sympy import symbols, Symbol, expand, Expr
 from math import log2, ceil, floor
@@ -25,9 +25,9 @@ class FormattedData:
 
 @dataclasses.dataclass
 class HamiltoniansData:
-    objective_hamiltonians: list[Expr]
-    constraints_hamiltonians: list[Expr]
-    sum_hamiltonian: Expr
+    objective_hamiltonians: list[Base]
+    constraints_hamiltonians: list[Base]
+    sum_hamiltonian: Base
 @dataclasses.dataclass
 class QUBOData:
     QUBO_dict: defaultdict[tuple[str, str], int]
@@ -49,12 +49,12 @@ class HamiltonianInitializer:
 
     def initialize_variables(self):
         # main variables
-        self.path_variables = [tuple([symbols("x_{}_{}".format(i, j)) for j in range(self.data.vertex_count)]) for i in range(self.data.q)]
-        self.cargo_take_variables = [tuple([symbols("a_{}_{}".format(i, j)) for j in range(self.data.q)]) for i in range(self.data.cargo_count)]
-        self.cargo_give_variables = [tuple([symbols("b_{}_{}".format(i, j)) for j in range(self.data.q)]) for i in range(self.data.cargo_count)]
+        self.path_variables = [tuple([Binary("x_{}_{}".format(i, j)) for j in range(self.data.vertex_count)]) for i in range(self.data.q)]
+        self.cargo_take_variables = [tuple([Binary("a_{}_{}".format(i, j)) for j in range(self.data.q)]) for i in range(self.data.cargo_count)]
+        self.cargo_give_variables = [tuple([Binary("b_{}_{}".format(i, j)) for j in range(self.data.q)]) for i in range(self.data.cargo_count)]
 
         #auxiliary variables
-        self.auxiliary_load_variables = [tuple([symbols("y_{}_{}".format(i, j)) for j in range(self.data.M + 1)]) for i in range(self.data.q)]
+        self.auxiliary_load_variables = [tuple([Binary("y_{}_{}".format(i, j)) for j in range(self.data.M + 1)]) for i in range(self.data.q)]
 
         #auxiliary expressions
         self.load_num = [self.auxiliary_variables_to_number_expression(i) for i in range(self.data.q)]
@@ -111,25 +111,8 @@ class QUBOInitializer:
     def __init__(self, hamiltonians_data):
         self.hamiltonians_data: HamiltoniansData = hamiltonians_data
     def get_QUBO(self) -> QUBOData:
-        Q = defaultdict(int)
-        H = self.hamiltonians_data.sum_hamiltonian.expand()
-        offset = 0
-        for monom, coef in H.as_coefficients_dict().items():
-            if monom == 1:
-                offset = coef
-            monom_variables = []
-            for var in monom.free_symbols:
-                monom_variables.append(str(var))
-            monom_variables.sort()
-            if len(monom.free_symbols) == 2:
-                Q[tuple(monom_variables)] += coef
-            elif len(monom.free_symbols) == 1:
-                monom_variables.append(monom_variables[0])
-                Q[tuple(monom_variables)] += coef
-            elif len(monom.free_symbols) == 0:
-                continue
-            else:
-                raise ValueError
+        model = self.hamiltonians_data.sum_hamiltonian.compile()
+        Q, offset = model.to_qubo()
         return QUBOData(Q, offset)
 
 

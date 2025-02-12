@@ -30,14 +30,14 @@ class RandomInstanceGenerator:
                     b = a + 1
             cargo_list.append(Cargo(random.randint(1, self.max_weight), a, b))
             sum_weight += cargo_list[-1].weight
-        M = ceil(log2(self.capacity))
+        M = floor(log2(self.capacity))
         q = self.vertex_count * (sum_weight // self.capacity + 1) # ??? just an approximation
         start_vertex, finish_vertex = random.randint(0, self.vertex_count - 1), random.randint(0, self.vertex_count - 1)
         return FormattedData(self.vertex_count, self.capacity, start_vertex, finish_vertex, cargo_list, self.cargo_count, dist, q, M), points
 
 
 
-data, points = RandomInstanceGenerator(5, 5, 10, 21).generate_instance()
+data, points = RandomInstanceGenerator(10, 10, 10, 21).generate_instance()
 print(data)
 I = HamiltonianInitializer(data)
 

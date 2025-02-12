@@ -19,7 +19,7 @@ class FormattedData:
     finish_vertex: int
     cargo_list: list[Cargo]
     cargo_count: int
-    dist: tuple[tuple[int, ...], ...]
+    dist: tuple[tuple[float, ...], ...]
     q: int
     M: int
 
@@ -60,14 +60,23 @@ class HamiltonianInitializer:
         self.load_num = [self.auxiliary_variables_to_number_expression(i) for i in range(self.data.q)]
         self.cargo_status = [[sum([self.cargo_take_variables[j][k] - self.cargo_give_variables[j][k] for k in range(i + 1)]) for j in range(self.data.cargo_count)] for i in range(self.data.q)]
     def initialize_consts(self):
-        self.const_correct_end_points = 10
-        self.const_correct_path = 100
-        self.const_correct_loads = 1
-        self.const_correct_take_give_action = 50
-        self.const_correct_take_vertices = 100
-        self.const_correct_give_vertices = 100
-        self.const_correct_order = 200
-        self.const_path_length = 1
+        self.norm_const_correct_end_points = 1 / 2
+        self.norm_const_correct_path = 1
+        self.norm_const_correct_loads = 1 / self.data.q
+        self.norm_const_correct_take_give_action = 1
+        self.norm_const_correct_take_vertices = 1
+        self.norm_const_correct_give_vertices = 1
+        self.norm_const_correct_order = 1 / 2
+        self.norm_const_path_length = 1 / max([max(d) for d in self.data.dist])
+
+        self.const_correct_end_points = 10 * self.norm_const_correct_end_points
+        self.const_correct_path = 100 * self.norm_const_correct_path
+        self.const_correct_loads = 1 * self.norm_const_correct_loads
+        self.const_correct_take_give_action = 50 * self.norm_const_correct_take_give_action
+        self.const_correct_take_vertices = 100 * self.norm_const_correct_take_vertices
+        self.const_correct_give_vertices = 100 * self.norm_const_correct_give_vertices
+        self.const_correct_order = 200 * self.norm_const_correct_order
+        self.const_path_length = 1 * self.norm_const_path_length
 
     def initialize_hamiltonians(self):
         H_correct_path = self.const_correct_path * sum(

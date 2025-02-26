@@ -63,6 +63,11 @@ def QUBO_solution(data: FormattedData):
 
     print("-----------------------------------")
 
+
+    QUBO_solution_postprocess(data, sol)
+
+    print("-----------------------------------")
+
     print("cargos info (weight, start, finish):", *[(cargo.weight, cargo.start_vertex, cargo.finish_vertex) for cargo in data.cargo_list])
     print("path: ", sol.path)
     print("cargo actions (turn taken, turn given): ", sol.cargo_actions)
@@ -121,7 +126,6 @@ def greedy_solution(data: FormattedData):
 
     print("-----------------------------------")
 
-
     print("cargos info (weight, start, finish):", *[(cargo.weight, cargo.start_vertex, cargo.finish_vertex) for cargo in data.cargo_list])
     print("path: ", sol.path)
     print("cargo actions (turn taken, turn given): ", sol.cargo_actions)
@@ -152,8 +156,20 @@ def visualize_path(path, points):
     plt.grid(True)
     plt.show()
 
+def QUBO_solution_postprocess(data: FormattedData, sol: SolutionData):
+    print("Postprocessing info:")
+    action_turns = set()
+    distance_loss = 0
+    for action in sol.cargo_actions:
+        action_turns.add(action[0])
+        action_turns.add(action[1])
+    for i in range(1, len(sol.path)):
+        if i not in action_turns and sol.path[i-1] != sol.path[i]:
+            print(f"Move without action from {sol.path[i-1]} to {sol.path[i]} at turn {i}")
+            distance_loss += data.dist[sol.path[i-1]][sol.path[i]]
+    print(f"Total path length overhead: {distance_loss}")
 
-data, points = RandomInstanceGenerator(5, 8, 15, 21).generate_instance()
+data, points = RandomInstanceGenerator(7, 7, 15, 21).generate_instance()
 
 sol_qubo = QUBO_solution(data)
 visualize_path(sol_qubo.path, points)

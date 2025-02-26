@@ -3,6 +3,7 @@ import math
 import time
 import matplotlib.pyplot as plt
 import timeit
+from visualization.dcsa_solution_visualization import RenderData
 from logistics_tasks.discrete_cargo_single_agent_QUBO import *
 
 
@@ -169,7 +170,28 @@ def QUBO_solution_postprocess(data: FormattedData, sol: SolutionData):
             distance_loss += data.dist[sol.path[i-1]][sol.path[i]]
     print(f"Total path length overhead: {distance_loss}")
 
-data, points = RandomInstanceGenerator(7, 7, 15, 21).generate_instance()
+def get_render_data(points: list[tuple[float, float]], data: FormattedData, sol: SolutionData):
+    points_dict = {}
+    cargo_dict = {}
+    for i in range(len(points)):
+        points_dict[i] = points[i]
+    for i in range(len(data.cargo_list)):
+        cargo_dict[i] = data.cargo_list[i].weight
+    baggage_states = [()]
+    cur_state = []
+    for i in range(len(sol.path)):
+        for j in range(len(sol.cargo_actions)):
+            if sol.cargo_actions[j][0] == i:
+                cur_state.append(j)
+            if sol.cargo_actions[j][1] == i:
+                cur_state.remove(j)
+        baggage_states.append(tuple(cur_state))
+    return RenderData(points_dict, cargo_dict, data.capacity, sol.path, baggage_states)
+
+
+
+data, points = RandomInstanceGenerator(7, 7, 15, 25).generate_instance()
+
 
 sol_qubo = QUBO_solution(data)
 visualize_path(sol_qubo.path, points)

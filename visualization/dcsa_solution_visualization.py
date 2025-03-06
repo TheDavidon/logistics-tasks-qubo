@@ -14,36 +14,36 @@ class RenderData:
 render_data = None
 class CargoPathScene(Scene):
     def add_fixed_in_frame_mobject(self, mobject):
-        # Метод для фиксации mobject относительно экрана
+        # Method to fix mobject relative to the screen
         mobject.fixed_in_frame = True
         self.add(mobject)
 
     def construct(self):
-        # Устанавливаем светлый фон
+        # Set a light background
         self.camera.background_color = WHITE
 
         # ------------------------------------------------------------------------------
-        # Входные данные (пример)
-        # 10 точек с произвольными координатами.
+        # Input data (example)
+        # 10 points with arbitrary coordinates.
         points_data = render_data.points
-        # Набор грузов: индекс -> вес
+        # Set of cargos: index -> weight
         cargos = render_data.cargos
         capacity = render_data.capacity
-        # Маршрут – последовательность индексов точек (15 пунктов)
+        # The route is a sequence of point indices (15 points)
         path = render_data.path
-        # Для каждой вершины маршрута задано состояние багажа (множество индексов грузов)
+        # For each route vertex, the baggage state is specified (a set of cargo indices)
         baggage_states = render_data.baggage_states
-        # Проверка согласованности входных данных.
+        # Checking the consistency of input data.
         if not (len(path) == len(baggage_states)):
             raise ValueError
 
         # ------------------------------------------------------------------------------
-        # Подготовка области для визуализации точек (мировая область)
+        # Preparing the area for point visualization (world area)
         all_coords = np.array(list(points_data.values()))
         min_x, max_x = np.min(all_coords[:, 0]), np.max(all_coords[:, 0])
         min_y, max_y = np.min(all_coords[:, 1]), np.max(all_coords[:, 1])
         points_center = np.array([(min_x + max_x) / 2, (min_y + max_y) / 2, 0])
-        # Область, в которую будут вписаны точки (учитываем отступ справа)
+        # The area in which the points will be embedded (taking into account the right indentation)
         world_width = 12
         world_height = 7.2
         world_center = np.array([-0.9, 0, 0])
@@ -51,13 +51,13 @@ class CargoPathScene(Scene):
         scale_y = world_height / (max_y - min_y + 1e-5) * 0.8
         scale_factor = min(scale_x, scale_y)
 
-        # Преобразование исходных координат в координаты для визуализации.
+        # Transform the original coordinates into visualization coordinates.
         def transform_point(pt):
             pt = np.array([pt[0], pt[1], 0])
             return (pt - points_center) * scale_factor + world_center
 
         # ------------------------------------------------------------------------------
-        # Отрисовка точек и их индексов
+        # Drawing points and their indices
         points_mobs = VGroup()
         for idx, coord in points_data.items():
             transformed_coord = transform_point(coord)
@@ -66,35 +66,35 @@ class CargoPathScene(Scene):
             points_mobs.add(point_dot, point_label)
         self.add(points_mobs)
 
-        # Отображение границы области визуализации
+        # Displaying the boundary of the visualization area
         boundary = Rectangle(width=world_width, height=world_height, color=GRAY, stroke_width=2)
         boundary.move_to(world_center)
         self.add(boundary)
 
         # ------------------------------------------------------------------------------
-        # Функция для получения динамических текстовых строк для состояния багажа.
+        # Function to get dynamic textual strings for the baggage state.
         def get_dynamic_texts(baggage_list):
             cargos_list = sorted(baggage_list)
-            cargo_str = ", ".join(map(str, cargos_list)) if cargos_list else "Пусто"
+            cargo_str = ", ".join(map(str, cargos_list)) if cargos_list else "Empty"
             total_weight = sum(cargos[c] for c in cargos_list) if cargos_list else 0
             return cargo_str, str(total_weight) + f"/{capacity}"
 
         # ------------------------------------------------------------------------------
-        # Создание статических надписей для боковой панели (фиксация относительно экрана)
-        # Надписи не будут меняться в ходе анимации.
-        cargo_label = Text("Багаж", font_size=24, color=BLACK)
-        weight_label = Text("Вес", font_size=24, color=BLACK)
-        # Размещаем надписи справа
+        # Creating static labels for the side panel (fixed relative to the screen)
+        # Labels will not change during animation
+        cargo_label = Text("Baggage", font_size=24, color=BLACK)
+        weight_label = Text("Weight", font_size=24, color=BLACK)
+        # Place labels on the right
         cargo_label.to_edge(RIGHT, buff=0.5).shift(UP*1)
         weight_label.next_to(cargo_label, DOWN, buff=1)
         self.add_fixed_in_frame_mobject(cargo_label)
         self.add_fixed_in_frame_mobject(weight_label)
 
-        # Создание динамических значений для состояния багажа.
+        # Creating dynamic values for the baggage state.
         init_cargo_str, init_weight_str = get_dynamic_texts(baggage_states[0])
         cargo_value = Text(init_cargo_str, font_size=24, color=BLACK)
         weight_value = Text(init_weight_str, font_size=24, color=BLACK)
-        # Располагаем динамичные тексты под соответствующими статическими надписями.
+        # Place dynamic texts under corresponding static labels.
         cargo_value.next_to(cargo_label, DOWN, buff=0.2)
         weight_value.next_to(weight_label, DOWN, buff=0.2)
         cargo_value.fixed_in_frame = True
@@ -102,30 +102,30 @@ class CargoPathScene(Scene):
         self.add(cargo_value, weight_value)
 
         # ------------------------------------------------------------------------------
-        # Создаем объект "машина" в виде небольшого красного круга.
+        # Create a "car" object in the form of a small red circle.
         start_point = transform_point(points_data[path[0]])
         car = Dot(point=start_point, radius=0.20, color=RED)
         self.add(car)
 
-        # Добавляем трассирующую линию за машиной.
+        # Add a tracing line behind the car.
         traced_path = TracedPath(car.get_center, stroke_color=RED, stroke_width=3)
         self.add(traced_path)
 
         # ------------------------------------------------------------------------------
-        # Анимация перемещения машины по маршруту и обновление динамических значений багажа.
+        # Animation of the car moving along the route and updating the dynamic baggage values.
         for i in range(1, len(path)):
-            # Определяем начальные и конечные точки для сегмента маршрута.
+            # Determine the start and end points for the route segment.
             start_idx = path[i - 1]
             end_idx = path[i]
             start_pos = transform_point(points_data[start_idx])
             end_pos = transform_point(points_data[end_idx])
             move_path = Line(start_pos, end_pos)
-            # Анимация движения машины вдоль линии.
+            # Animation of the car movement along the line.
             self.play(MoveAlongPath(car, move_path), run_time=2, rate_func=manim.utils.rate_functions.smooth)
-            # Получаем новое состояние багажа.
+            # Get the new state of the baggage.
             new_baggage = baggage_states[i]
             new_cargo_str, new_weight_str = get_dynamic_texts(new_baggage)
-            # Создаем новые объекты для динамических значений и позиционируем их в тех же местах.
+            # Create new objects for the dynamic values and position them in the same places.
             new_cargo_value = Text(new_cargo_str, font_size=24, color=BLACK)
             new_cargo_value.move_to(cargo_value.get_center())
             new_cargo_value.fixed_in_frame = True
@@ -134,7 +134,7 @@ class CargoPathScene(Scene):
             new_weight_value.move_to(weight_value.get_center())
             new_weight_value.fixed_in_frame = True
 
-            # Анимируем обновление динамических значений.
+            # Animate the update of the dynamic values.
             self.play(
                 Transform(cargo_value, new_cargo_value),
                 Transform(weight_value, new_weight_value),

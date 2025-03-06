@@ -1,3 +1,5 @@
+import random
+
 from sympy import symbols, Symbol, expand, Expr
 from math import log2, ceil, floor
 from collections import defaultdict
@@ -8,13 +10,33 @@ INF = 1e9
 
 #TODO Refactor code with classes usage
 
+def random_network_generator(consumers_count: int, storage_count: int):
+    n = consumers_count + storage_count
+    coords = [(random.randint(-100, 100), random.randint(-100, 100)) for i in range(n)]
+    vertex_types = [-1 if i < consumers_count else 1 for i in range(n)]
+    dist = [[((coords[i][0] - coords[j][0]) ** 2 + (coords[i][1] - coords[j][1]) ** 2) ** (0.5) for j in range(n)] for i in range(n)]
+    requirements = [random.randint(1, 100) for i in range(n)]
+    cons_req = sum(requirements[:consumers_count])
+    stor_req = sum(requirements[consumers_count:n])
+    while cons_req > stor_req:
+        t = random.randint(consumers_count, n - 1)
+        a = random.randint(1, 50)
+        requirements[t] += a
+        stor_req += a
+    capacity = random.randint(5, 50)
+    start, finish = (random.randint(0, n - 1), random.randint(0, n - 1))
+    return (n, coords, dist, vertex_types, requirements, capacity, start, finish)
+
 def encoding_variables_to_number_expression(encoding_variables: tuple[Symbol, ...], max_num: int, max_power: int):
     return sum([encoding_variables[i] * 2 ** i for i in range(max_power)]) + (max_num + 1 - 2 ** max_power) * encoding_variables[-1]
 
-def QUBO_from_hamiltonian_expr(H: Expr) -> defaultdict:
+def QUBO_from_hamiltonian_expr(H: Expr) -> tuple[defaultdict, int]:
     Q = defaultdict(int)
     H = H.expand()
+    offset = 0
     for monom, coef in H.as_coefficients_dict().items():
+        if monom == 1:
+            offset = coef
         monom_variables = []
         for var in monom.free_symbols:
             monom_variables.append(str(var))
@@ -28,7 +50,10 @@ def QUBO_from_hamiltonian_expr(H: Expr) -> defaultdict:
             continue
         else:
             raise ValueError
-    return Q
+    return (Q, offset)
+
+def get_energy_offset(H: Expr):
+    return H.as_coefficients_dict()['1']
 
 def path_from_path_variables_values(variables: dict[str, int], q: int, vertex_count: int):
     path = [-1] * q
@@ -117,12 +142,27 @@ def output_data(path, actions, loads):
     pass
 
 
+max_d = 0
+
+#random input
+
+# vertex_count, coords, dist, vertex_type, requirements, capacity, start, finish = random_network_generator(2, 2)
+# print(requirements)
+# print(coords)
+# print(start, finish)
+# print(capacity)
+# max_d = max([max(dist[i]) for i in range(vertex_count)])
+
+
+
+#user input
 
 vertex_count = int(input())
 edge_count = int(input())
-dist = [[INF]*vertex_count for i in range(vertex_count)]
+dist = [[0]*vertex_count for i in range(vertex_count)]
 for i in range(edge_count):
     a, b, w = map(int, input().split())
+    max_d = max(max_d, w)
     dist[a][b] = w
     dist[b][a] = w
 
@@ -131,9 +171,11 @@ requirements = list(map(int, input().split()))
 capacity = int(input())
 start, finish = map(int, input().split())
 
+
+
 #TODO q determination
 
-q = 5
+q = 15
 M = floor(log2(capacity))
 U = [floor(log2(req)) for req in requirements]
 
@@ -150,13 +192,13 @@ load_num = [encoding_variables_to_number_expression(auxiliary_load_variables[i],
 vertex_action_num = [encoding_variables_to_number_expression(auxiliary_vertex_action_variables[i], requirements[i], U[i]) for i in range(vertex_count)]
 
 #TODO hamiltonians const determination
-const_correct_path = 200
-const_correct_end_points = 100
-const_correct_actions = 100
-const_correct_loads = 10
-const_correct_storage_actions = 1
-const_satisfied_consumers = 5
-const_path_length = 1
+const_correct_actions = ceil(2 * capacity * (q + 1) ** 3 / 3)
+const_correct_end_points = ceil(const_correct_actions * capacity / 3) + 1
+const_correct_path = max(max_d, 3 * const_correct_end_points + 1)
+const_correct_loads = 200 * q
+const_correct_storage_actions = 10 * q
+const_satisfied_consumers = 10 * q
+const_path_length = ceil((q * capacity) ** 2 / max_d)
 
 #correctness hamiltonians
 H_correct_path = const_correct_path * sum([(1 - sum([path_variables[i][j] for j in range(vertex_count)]))**2 for i in range(q)])
@@ -173,16 +215,16 @@ H_satisfied_consumers = const_satisfied_consumers * sum([(requirements[j] - sum(
 H_path_length = const_path_length * sum([sum([sum([path_variables[i][u] * path_variables[i + 1][v] * dist[u][v] for i in range(q - 1)]) for v in range(vertex_count)]) for u in range(vertex_count)])
 
 H = H_correct_path + H_correct_end_points + H_correct_actions + H_correct_loads + H_satisfied_consumers + H_path_length + H_correct_storage_actions
-a = QUBO_from_hamiltonian_expr(H)
+a, offset = QUBO_from_hamiltonian_expr(H)
+
 
 sampler = neal.SimulatedAnnealingSampler()
-res = sampler.sample_qubo(a, num_reads = 15, num_sweeps=10000).samples()[0]
+res = sampler.sample_qubo(a, num_reads = 1, num_sweeps=1000000).samples()[0]
 print(res)
 path = path_from_path_variables_values(res, q, vertex_count)
 print(path)
 actions = actions_from_actions_variables_values(res, q, M, capacity, path)
 print(actions)
-
 loads = loads_from_loads_variables_values(res, q, M, capacity)
 print(loads)
 
